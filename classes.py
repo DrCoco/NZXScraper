@@ -33,8 +33,9 @@ class StockSummary:
         return str(self.__dict__)
 
 class Stock:
-    def __init__(self, stockSummary) :
+    def __init__(self, stockSummary, stockHistoricalPrices) :
         self.stockSummary = stockSummary
+        self.stockHistoricalPrices = stockHistoricalPrices
 
     def __str__(self):
         return str(self.__dict__)
