@@ -73,7 +73,7 @@ for stock in stockNames :
     if DEBUG: print("Pulling historical price data from: " + csvLink)
     browser.get(csvLink)
     sleep(5)
-    stockHistoricalPricesDataFrame = functions.get_stock_historical_prices(r"temp\\" + stockSummary.stockTicker + " Historical Prices.csv")
+    stockHistoricalPricesDataFrame = functions.get_stock_historical_prices(environment.downloadDirectory + stockSummary.stockTicker + " Historical Prices.csv")
 
     # Arrive at Company Directory and pull directors information
 
