@@ -1,39 +1,14 @@
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
-from time import sleep
+import sys
+from time import sleep, time
 import functions
 import environment
 import classes
-from datetime import datetime, timedelta
 import shutil
 DEBUG = True
 
-# Set up driver options
-chromeOptions = Options()
-chromeOptions.add_argument('log-level=3') # Remove warnings
-# prefs = {"profile.managed_default_content_settings.images":2} # Remove images to lower load times
-prefs = {"download.default_directory": environment.downloadDirectory ,
-                      "directory_upgrade": True,
-                      "safebrowsing.enabled": True,
-                      "download.prompt_for_download": False }
-chromeOptions.add_experimental_option("prefs",prefs)
-browser = webdriver.Chrome(environment.chromeDriverLocation, chrome_options = chromeOptions) # Apply options
-homeURL = "https://library.aut.ac.nz/databases/nzx-deep-archive"
-
-browser.get(homeURL)
-
-delay = 15 # seconds
-try:
-    myElem = WebDriverWait(browser, delay).until(EC.presence_of_element_located((By.CLASS_NAME, "form-field")))
-    if DEBUG: print ("Page is ready!")
-except TimeoutException:
-    print ("Loading took too much time!")
-
+if DEBUG: startTime = time()
+browser = functions.get_browser()
 sleep(2)
 
 # Login
@@ -41,15 +16,18 @@ browser.find_element_by_xpath('//*[@id="username"]').send_keys(environment.usern
 browser.find_element_by_xpath('//*[@id="password"]').send_keys(environment.password)
 browser.find_element_by_xpath('//*[@id="login"]/section[4]/button').click()
 
-browser.find_element_by_xpath('/html/body/table/tbody/tr[3]/td[2]/table/tbody/tr/td[1]/p[1]/table/tbody/tr[1]/td/a').click()
-browser.find_element_by_xpath('//*[@id="content"]/center/table/tbody/tr[3]/td/table/tbody/tr/td/table/tbody/tr[4]/td/table/tbody/tr[2]/td[1]/a').click()
-browser.find_element_by_xpath('//*[@id="content"]/center/table/tbody/tr[3]/td/table/tbody/tr/td/table[3]/tbody/tr[2]/td/table/tbody/tr[2]/td[13]/a[2]').click()
+# Arrive at Market Activity Page
+browser.find_element_by_xpath(".//a[contains(text(), 'Company Research')]").click()
+browser.find_elements_by_xpath(".//a[contains(text(), 'view all')]")[0].click()
+    # first "view all" text corresponds to Main Board
+browser.find_elements_by_css_selector('td > a')[25].click()
+    # 26th a tag corresponds to sorting by marketcap descending order
 
 html = browser.page_source
 htmlSoup = BeautifulSoup(html,'lxml')
 
 #stocksSoup = htmlSoup.find_all('td', {'class' : 'text'}, limit=None)
-stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=3)
+stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=50)
 stockNames = []
 for stock in stocksSoup :
     stockNames.append(stock.getText())
@@ -58,22 +36,16 @@ stockDataArray = []
 
 for stock in stockNames :
     if DEBUG: print("Current Stock: " + stock)
-    
     # Arrive at Summary & Ratios page and pull ratio information
     browser.find_element_by_link_text(stock).click()
     stockSoup = BeautifulSoup(browser.page_source, 'lxml')
     if DEBUG: print("Pulling ratio information")
-    stockSummary = functions.get_stock_summary(stockSoup)
+    stockSummaryDict = functions.get_stock_summary(stockSoup)
 
-    # Create link to csv files and pull them down
-    fromDate = (datetime.now() - timedelta(days=3*365)).strftime('%Y-%m-%d')
-    toDate = datetime.now().strftime('%Y-%m-%d')
-    csvLink =  "https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/functions/csv_prices.php?"
-    csvLink += ("default=" + stockSummary.stockTicker + "&" + "fd=" + fromDate + "&" + "td=" + toDate)
-    if DEBUG: print("Pulling historical price data from: " + csvLink)
+    csvLink = functions.create_historical_prices_csv_link(stockSummaryDict)
     browser.get(csvLink)
     sleep(5)
-    stockHistoricalPricesDataFrame = functions.get_stock_historical_prices(environment.downloadDirectory + stockSummary.stockTicker + " Historical Prices.csv")
+    stockHistoricalPricesDataFrame = functions.get_stock_historical_prices(environment.tempDirectory + stockSummaryDict["Ticker"] + " Historical Prices.csv")
 
     # Arrive at Company Directory and pull directors information
 
@@ -86,15 +58,20 @@ for stock in stockNames :
     # Arrive at Financial Profile and pull debt-equity information
 
     # Create the stock obj and store it in an array
-    stockData = classes.Stock(stockSummary, stockHistoricalPricesDataFrame)
+    stockData = classes.Stock(stockSummaryDict, stockHistoricalPricesDataFrame)
     stockDataArray.append(stockData)
 
     # BACK
     browser.execute_script("window.history.go(-1)") #Execute some Javascript
 
+if DEBUG: print("Scraping complete")
 browser.quit()
+if DEBUG: print("Temporary files deleted")
 shutil.rmtree(environment.downloadDirectory)
 
 functions.print_excel(stockDataArray)
 
 print("Excel ready")
+
+if DEBUG: endTime = time()
+if DEBUG: print(endTime-startTime)
