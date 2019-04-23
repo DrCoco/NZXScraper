@@ -66,6 +66,9 @@ def create_historical_prices_csv_link(stockSummaryDict) :
     if DEBUG: print("Pulling historical price data from: " + csvLink)
     return csvLink
 
+def create_historical_dividends_csv_link(stockTicker) :
+    return "https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/divhistory_csv.php?selection=" + stockTicker
+
 def print_overview_sheet(workbook,stockDataArray, formats) :
     if DEBUG: print("Printing Overview")
     overviewSheet = workbook.add_worksheet("Overview")
@@ -135,11 +138,92 @@ def print_excel(stockDataArray) :
     for stock in stockDataArray :
         print_summary_sheet(workbook, stock, formats)
         print_historical_prices_sheet(workbook, stock, formats)
+        print_historical_dividends_sheet(workbook, stock, formats)
+        print_financial_profile_sheet(workbook, stock, formats)
 
     workbook.close()
 
+def print_historical_dividends_sheet(workbook, stock, formats) :
+    if DEBUG: print("       Printing Historical Dividends for " + stock.stockSummaryDict["Ticker"])
+    row = 0
+    col = 0
 
+    # Create sheet
+    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"]+"_HistoricalDividends")
+    # Print Headers
+    keys = stock.stockHistoricalDividends[0].keys()
+    for key in keys :
+        worksheet.write_string(row, col, key)
+        col += 1
+    worksheet.write_url(row, col+13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
+
+    row = 1
+    col = 0
+
+    # Print Items
+    for rowItems in stock.stockHistoricalDividends:
+        if DEBUG: print(rowItems)
+        for key, value in rowItems.items():
+            if DEBUG: print(value)
+            if (key == 'Date') :
+                worksheet.write_datetime(row, col, datetime.strptime(value,'%d %b %Y'), formats['dateFormat'])
+            else :
+                worksheet.write_number(row, col, float(value))
+            col += 1
+        row += 1
+        col = 0
 
 def get_stock_historical_prices(stockHistoricalPricesCSV) :
     if DEBUG: print(pandas.read_csv(stockHistoricalPricesCSV))
     return pandas.read_csv(stockHistoricalPricesCSV).to_dict('r')
+
+def get_stock_historical_dividends(stockHistoricalDividendsCSV) :
+    dividendDF = pandas.read_csv(stockHistoricalDividendsCSV)
+    dividendDF = dividendDF.dropna()
+    dividendDF = dividendDF[['Ex Date', 'Gross Amount']]
+    dividendDF.columns = ['Date', 'Dividend Paid']
+    dividendDF = dividendDF[dividendDF['Dividend Paid'] != '-']
+    return dividendDF.to_dict('r')
+
+def get_financial_profile(stockSoup) :
+    tables = stockSoup.find_all('table')
+    incomeTableHeaders = [item.get_text()[1:-1] for item in tables[7].find_all('tr')]
+    incomeTableData =    [[ td.text for td in row.select('td')]
+                        for row in tables[8].find_all('tr')]
+
+    balanceTableHeaders = [item.get_text() for item in tables[11].find_all('td')]
+    balanceTableData = [[ td.text for td in row.select('td')]
+                        for row in tables[12].find_all('tr')]
+
+    cashTableHeaders = [item.get_text() for item in tables[15].find_all('td')]
+    cashTableData = [[ td.text for td in row.select('td')]
+                        for row in tables[16].find_all('tr')]
+
+    financialProfileDict = {}
+
+    for item in incomeTableHeaders:
+        financialProfileDict[item] = incomeTableData[incomeTableHeaders.index(item)][0]
+
+    for item in balanceTableHeaders:
+        financialProfileDict[item] = balanceTableData[balanceTableHeaders.index(item)][0]
+
+    for item in cashTableHeaders:
+        financialProfileDict[item] = cashTableData[cashTableHeaders.index(item)][0]
+
+    return financialProfileDict
+
+def print_financial_profile_sheet(workbook, stock, formats):
+    if DEBUG: print("       Printing Financial Profile for " + stock.stockSummaryDict["Ticker"])
+    row = 0
+    col = 0
+
+    # Create sheet
+    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"]+"_FinancialProfile")
+    # Print Headers & Values
+    keys = stock.stockFinancialProfile.keys()
+    if DEBUG: print(keys)
+    for key in keys :
+        worksheet.write_string(row, col, key)
+        worksheet.write_string(row, col+1, stock.stockFinancialProfile)
+        row += 1
+    worksheet.write_url(0, 13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")

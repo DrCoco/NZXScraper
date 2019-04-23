@@ -6,6 +6,7 @@ import environment
 import classes
 import shutil
 DEBUG = True
+COMPANIES = 3
 
 if DEBUG: startTime = time()
 browser = functions.get_browser()
@@ -27,7 +28,7 @@ html = browser.page_source
 htmlSoup = BeautifulSoup(html,'lxml')
 
 #stocksSoup = htmlSoup.find_all('td', {'class' : 'text'}, limit=None)
-stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=50)
+stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=COMPANIES)
 stockNames = []
 for stock in stocksSoup :
     stockNames.append(stock.getText())
@@ -44,8 +45,8 @@ for stock in stockNames :
 
     csvLink = functions.create_historical_prices_csv_link(stockSummaryDict)
     browser.get(csvLink)
-    sleep(5)
-    stockHistoricalPricesDataFrame = functions.get_stock_historical_prices(environment.tempDirectory + stockSummaryDict["Ticker"] + " Historical Prices.csv")
+    sleep(3)
+    stockHistoricalPricesDictionary = functions.get_stock_historical_prices(environment.tempDirectory + stockSummaryDict["Ticker"] + " Historical Prices.csv")
 
     # Arrive at Company Directory and pull directors information
 
@@ -54,15 +55,26 @@ for stock in stockNames :
     # Arrive at Annual Reports and pull latest annual report
 
     # Arrive at Dividends and pull dividend information
+    # Link Sample: https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/divhistory_csv.php?selection=TLS
+    csvLink = functions.create_historical_dividends_csv_link(stockSummaryDict["Ticker"])
+    browser.get(csvLink)
+    sleep(3)
+    stockHistoricalDividendsDictionary = functions.get_stock_historical_dividends(environment.tempDirectory + stockSummaryDict["Ticker"] + " Historical Dividends.csv")
 
     # Arrive at Financial Profile and pull debt-equity information
+    browser.find_element_by_xpath(".//span[contains(text(), 'Financial Profile')]").click()
+    stockSoup = BeautifulSoup(browser.page_source, 'lxml')
+    if DEBUG: print("Pulling ratio information")
+    browser.execute_script("window.history.go(-1)")
+    stockFinancialProfileDictionary = functions.get_financial_profile(stockSoup)
 
     # Create the stock obj and store it in an array
-    stockData = classes.Stock(stockSummaryDict, stockHistoricalPricesDataFrame)
+    stockData = classes.Stock(stockSummaryDict, stockHistoricalPricesDictionary, 
+                                stockHistoricalDividendsDictionary, stockFinancialProfileDictionary)
     stockDataArray.append(stockData)
 
     # BACK
-    browser.execute_script("window.history.go(-1)") #Execute some Javascript
+    browser.execute_script("window.history.go(-1)")
 
 if DEBUG: print("Scraping complete")
 browser.quit()
@@ -74,4 +86,5 @@ functions.print_excel(stockDataArray)
 print("Excel ready")
 
 if DEBUG: endTime = time()
-if DEBUG: print(endTime-startTime)
+if DEBUG: print("That took a total of: " + str(round(endTime-startTime)) + " seconds.")
+if DEBUG: print(str(round((endTime-startTime)/COMPANIES)) + " seconds per company.")
