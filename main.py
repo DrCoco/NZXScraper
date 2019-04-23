@@ -18,25 +18,28 @@ browser.find_element_by_xpath('//*[@id="login"]/section[4]/button').click()
 
 # Arrive at Market Activity Page
 browser.find_element_by_xpath(".//a[contains(text(), 'Company Research')]").click()
+    # Click "View all" for main market
 browser.find_elements_by_xpath(".//a[contains(text(), 'view all')]")[0].click()
-    # first "view all" text corresponds to Main Board
+    # Sort in descending order by clicking the 26th "a" tag LMAO
 browser.find_elements_by_css_selector('td > a')[25].click()
-    # 26th a tag corresponds to sorting by marketcap descending order
 
+# parse the page source into beautiful soup 
+# the page is the list of stocks in Descending order of Market Cap
 html = browser.page_source
-htmlSoup = BeautifulSoup(html,'lxml')
+htmlSoup =   BeautifulSoup(html,'lxml')
 
-#stocksSoup = htmlSoup.find_all('td', {'class' : 'text'}, limit=None)
-stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=50)
+# put all the stock tickers into a list
+stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=1)
 stockNames = []
 for stock in stocksSoup :
     stockNames.append(stock.getText())
 
 stockDataArray = []
 
+# For each ticker in the list, find the link to the respective summary page
 for stock in stockNames :
     if DEBUG: print("Current Stock: " + stock)
-    # Arrive at Summary & Ratios page and pull ratio information
+    # Arrive at Summary & Ratios page and pull information
     browser.find_element_by_link_text(stock).click()
     stockSoup = BeautifulSoup(browser.page_source, 'lxml')
     if DEBUG: print("Pulling ratio information")
@@ -48,7 +51,13 @@ for stock in stockNames :
     stockHistoricalPricesDataFrame = functions.get_stock_historical_prices(environment.tempDirectory + stockSummaryDict["Ticker"] + " Historical Prices.csv")
 
     # Arrive at Company Directory and pull directors information
+    browser.find_element_by_xpath(".//span[contains(text(), 'Company Directory')]").click()
+    directorSoup = BeautifulSoup(browser.page_source, 'lxml')
+    if DEBUG: print("Pulling Director's information")
+    directorDict = functions.get_director_information(directorSoup)
+    
 
+    print(directorDict)
     # Arrive at Company Profile and pull description information
 
     # Arrive at Annual Reports and pull latest annual report
@@ -63,13 +72,14 @@ for stock in stockNames :
 
     # BACK
     browser.execute_script("window.history.go(-1)") #Execute some Javascript
+    browser.execute_script("window.history.go(-1)") 
 
 if DEBUG: print("Scraping complete")
 browser.quit()
 if DEBUG: print("Temporary files deleted")
 shutil.rmtree(environment.downloadDirectory)
 
-functions.print_excel(stockDataArray)
+functions.print_excel(stockDataArray, directorDict)
 
 print("Excel ready")
 

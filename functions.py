@@ -12,6 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 import environment
+from bs4 import BeautifulSoup
 
 def get_browser() :
     # Set up driver options
@@ -119,7 +120,7 @@ def print_historical_prices_sheet(workbook, stock, formats) :
         row += 1
         col = 0
 
-def print_excel(stockDataArray) :
+def print_excel(stockDataArray, directorDict) :
     if DEBUG: print("Printing excel document")
     # Create excel workbook
     workbook = xlsxwriter.Workbook('StockDB.xlsx')
@@ -135,6 +136,8 @@ def print_excel(stockDataArray) :
     for stock in stockDataArray :
         print_summary_sheet(workbook, stock, formats)
         print_historical_prices_sheet(workbook, stock, formats)
+        print_Directors(workbook, directorDict, stock)
+    
 
     workbook.close()
 
@@ -143,3 +146,24 @@ def print_excel(stockDataArray) :
 def get_stock_historical_prices(stockHistoricalPricesCSV) :
     if DEBUG: print(pandas.read_csv(stockHistoricalPricesCSV))
     return pandas.read_csv(stockHistoricalPricesCSV).to_dict('r')
+
+def get_director_information(directorSoup):
+    tableData = directorSoup.find_all('table')[13]
+    # print(tableData[0])
+    # print(len(tableData))
+    directorDict = {}
+    directorTableData = [[ td.text for td in row.select('td')]
+                         for row in tableData.find_all('tr')]
+    for item in directorTableData:
+        directorDict[item[0]] = item[1]
+
+    return directorDict
+
+def print_Directors(workbook,directorDict,stock) :
+    row = 0
+    col = 0
+    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_Directors")
+    for key, value in directorDict.items():
+        worksheet.write_string(row, col, key)
+        worksheet.write_string(row, col+2, value)
+        row += 1
