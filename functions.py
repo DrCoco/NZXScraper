@@ -123,7 +123,7 @@ def print_historical_prices_sheet(workbook, stock, formats) :
         row += 1
         col = 0
 
-def print_excel(stockDataArray, directorDict) :
+def print_excel(stockDataArray, directorDict, companyProfileDict) :
     if DEBUG: print("Printing excel document")
     # Create excel workbook
     workbook = xlsxwriter.Workbook('StockDB.xlsx')
@@ -140,7 +140,7 @@ def print_excel(stockDataArray, directorDict) :
         print_summary_sheet(workbook, stock, formats)
         print_historical_prices_sheet(workbook, stock, formats)
         print_Directors(workbook, directorDict, stock)
-    
+        print_company_profile(workbook,companyProfileDict, stock)
         print_historical_dividends_sheet(workbook, stock, formats)
         print_financial_profile_sheet(workbook, stock, formats)
 
@@ -248,6 +248,30 @@ def print_financial_profile_sheet(workbook, stock, formats):
     if DEBUG: print(keys)
     for key in keys :
         worksheet.write_string(row, col, key)
-        worksheet.write_string(row, col+1, stock.stockFinancialProfile)
+        worksheet.write_string(row, col+1, stock.stockFinancialProfile[key])
         row += 1
     worksheet.write_url(0, 13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
+
+def get_company_profile(profileSoup):
+    companyProfileDict = {}
+    # Put all table rows into a list.
+    profList = profileSoup.find_all("tr", 'heading')
+    if DEBUG: print("Pulling company profile information...")
+    #profList[1] is the business description header. Store business description in Dictionary
+    companyProfileDict[profList[1].text] = profList[1].find_next_sibling('tr').td.text 
+    #profList[2] is the overview header. Store in Dictionary
+    companyProfileDict[profList[2].text] = profList[2].find_next_sibling('tr').td.text
+    #profList[3] is the Performance header. Store in Dictionary
+    companyProfileDict[profList[3].text] = profList[3].find_next_sibling('tr').td.text
+    #profList[4] is the Outlook header. Store in Dictionary
+    companyProfileDict[profList[4].text] = profList[4].find_next_sibling('tr').td.text
+    return companyProfileDict
+
+def print_company_profile(workbook,companyProfileDict,stock) :
+    row = 0
+    col = 0
+    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_COMPANY_PROFILE")
+    for key, value in companyProfileDict.items():
+        worksheet.write_string(row, col, key)
+        worksheet.write_string(row, col+2, value)
+        row += 1
