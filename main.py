@@ -56,14 +56,24 @@ for stock in stockNames :
     directorSoup = BeautifulSoup(browser.page_source, 'lxml')
     if DEBUG: print("Pulling Director's information")
     directorDict = functions.get_director_information(directorSoup)
-    
+    browser.execute_script("window.history.go(-1)") # Go back
 
-    print(directorDict)
     # Arrive at Company Profile and pull description information
-
+    browser.find_element_by_xpath(".//span[contains(text(), 'Company Profile')]").click()
+    profileSoup = BeautifulSoup(browser.page_source, 'lxml')
+    if DEBUG: print("Pulling company description")
+    companyProfileDict = functions.get_company_profile(profileSoup)
+    print(companyProfileDict)
+    browser.execute_script("window.history.go(-1)") # Go back
     # Arrive at Annual Reports and pull latest annual report
 
     # Arrive at Dividends and pull dividend information
+    browser.find_element_by_xpath(".//span[contains(text(), 'Dividend & Interest Payments')]").click()
+    divSoup = BeautifulSoup(browser.page_source, 'lxml')
+    if DEBUG : print('pulling dividend and interest information') 
+    # get dividends information Csv using link
+    browser.get("https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/divhistory_csv.php?selection=" + stockSummaryDict["Ticker"])
+    
     # Link Sample: https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/divhistory_csv.php?selection=TLS
     csvLink = functions.create_historical_dividends_csv_link(stockSummaryDict["Ticker"])
     browser.get(csvLink)
@@ -84,14 +94,14 @@ for stock in stockNames :
 
     # BACK
     browser.execute_script("window.history.go(-1)") #Execute some Javascript
-    browser.execute_script("window.history.go(-1)") 
+    
 
 if DEBUG: print("Scraping complete")
 browser.quit()
 if DEBUG: print("Temporary files deleted")
 shutil.rmtree(environment.downloadDirectory)
 
-functions.print_excel(stockDataArray, directorDict)
+functions.print_excel(stockDataArray, directorDict, companyProfileDict)
 
 print("Excel ready")
 
