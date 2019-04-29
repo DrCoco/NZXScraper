@@ -21,6 +21,7 @@ def get_browser() :
     # prefs = {"profile.managed_default_content_settings.images":2} # Remove images to lower load times
     prefs = {"download.default_directory": environment.downloadDirectory ,
             "directory_upgrade": True,
+			"plugins.always_open_pdf_externally": True,
             "safebrowsing.enabled": True,
             "download.prompt_for_download": False,
             "profile.managed_default_content_settings.images":2 }
@@ -123,7 +124,7 @@ def print_historical_prices_sheet(workbook, stock, formats) :
         row += 1
         col = 0
 
-def print_excel(stockDataArray, directorDict, companyProfileDict) :
+def print_excel(stockDataArray) :
     if DEBUG: print("Printing excel document")
     # Create excel workbook
     workbook = xlsxwriter.Workbook('StockDB.xlsx')
@@ -139,8 +140,8 @@ def print_excel(stockDataArray, directorDict, companyProfileDict) :
     for stock in stockDataArray :
         print_summary_sheet(workbook, stock, formats)
         print_historical_prices_sheet(workbook, stock, formats)
-        print_Directors(workbook, directorDict, stock)
-        print_company_profile(workbook,companyProfileDict, stock)
+        print_Directors(workbook, stock, formats)
+        print_company_profile(workbook, stock, formats)
         print_historical_dividends_sheet(workbook, stock, formats)
         print_financial_profile_sheet(workbook, stock, formats)
 
@@ -192,11 +193,11 @@ def get_director_information(directorSoup):
 
     return directorDict
 
-def print_Directors(workbook,directorDict,stock) :
+def print_Directors(workbook, stock, format) :
     row = 0
     col = 0
     worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_Directors")
-    for key, value in directorDict.items():
+    for key, value in stock.stockDirectorDict.items():
         worksheet.write_string(row, col, key)
         worksheet.write_string(row, col+2, value)
         row += 1
@@ -267,11 +268,20 @@ def get_company_profile(profileSoup):
     companyProfileDict[profList[4].text] = profList[4].find_next_sibling('tr').td.text
     return companyProfileDict
 
-def print_company_profile(workbook,companyProfileDict,stock) :
+def print_company_profile(workbook, stock, format) :
     row = 0
     col = 0
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_COMPANY_PROFILE")
-    for key, value in companyProfileDict.items():
+    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_company_profile")
+    for key, value in stock.stockCompanyProfile.items():
+        worksheet.write_string(row, col, key)
+        worksheet.write_string(row, col+2, value)
+        row += 1
+
+def print_dividends_info(workbook,dividendsDict,stock) :
+    row = 0
+    col = 0
+    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_dividends_info")
+    for key, value in dividendsDict.items():
         worksheet.write_string(row, col, key)
         worksheet.write_string(row, col+2, value)
         row += 1

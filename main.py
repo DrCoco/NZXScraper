@@ -8,6 +8,7 @@ import shutil
 DEBUG = True
 COMPANIES = 3
 
+
 if DEBUG: startTime = time()
 browser = functions.get_browser()
 sleep(2)
@@ -40,8 +41,9 @@ stockDataArray = []
 # For each ticker in the list, find the link to the respective summary page
 for stock in stockNames :
     if DEBUG: print("Current Stock: " + stock)
+
     # Arrive at Summary & Ratios page and pull information
-    browser.find_element_by_link_text(stock).click()
+    browser.find_element_by_link_text(stock).click() 
     stockSoup = BeautifulSoup(browser.page_source, 'lxml')
     if DEBUG: print("Pulling ratio information")
     stockSummaryDict = functions.get_stock_summary(stockSoup)
@@ -55,25 +57,23 @@ for stock in stockNames :
     browser.find_element_by_xpath(".//span[contains(text(), 'Company Directory')]").click()
     directorSoup = BeautifulSoup(browser.page_source, 'lxml')
     if DEBUG: print("Pulling Director's information")
-    directorDict = functions.get_director_information(directorSoup)
+    stockDirectorDict = functions.get_director_information(directorSoup)
     browser.execute_script("window.history.go(-1)") # Go back
 
     # Arrive at Company Profile and pull description information
     browser.find_element_by_xpath(".//span[contains(text(), 'Company Profile')]").click()
     profileSoup = BeautifulSoup(browser.page_source, 'lxml')
     if DEBUG: print("Pulling company description")
-    companyProfileDict = functions.get_company_profile(profileSoup)
-    print(companyProfileDict)
+    stockProfileDict = functions.get_company_profile(profileSoup)
+    print(stockProfileDict)
     browser.execute_script("window.history.go(-1)") # Go back
-    # Arrive at Annual Reports and pull latest annual report
 
-    # Arrive at Dividends and pull dividend information
-    browser.find_element_by_xpath(".//span[contains(text(), 'Dividend & Interest Payments')]").click()
-    divSoup = BeautifulSoup(browser.page_source, 'lxml')
-    if DEBUG : print('pulling dividend and interest information') 
-    # get dividends information Csv using link
-    browser.get("https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/divhistory_csv.php?selection=" + stockSummaryDict["Ticker"])
-    
+    # Arrive at Annual Reports and pull latest annual report
+    # TODO change dl directory outside temp
+    browser.find_element_by_xpath(".//span[contains(text(), 'Annual Reports')]").click()
+    browser.find_element_by_xpath(r"""//*[@id="content"]/center/table/tbody/tr[3]/td/table/tbody/tr[2]/td[2]/table/tbody/tr/td/table[2]/tbody/tr[1]/td[1]/table/tbody/tr[1]/td[2]/form/input""").click()
+
+    # Arrive at Dividends and pull dividend informatio
     # Link Sample: https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/divhistory_csv.php?selection=TLS
     csvLink = functions.create_historical_dividends_csv_link(stockSummaryDict["Ticker"])
     browser.get(csvLink)
@@ -89,7 +89,7 @@ for stock in stockNames :
 
     # Create the stock obj and store it in an array
     stockData = classes.Stock(stockSummaryDict, stockHistoricalPricesDictionary, 
-                                stockHistoricalDividendsDictionary, stockFinancialProfileDictionary)
+                                stockHistoricalDividendsDictionary, stockFinancialProfileDictionary, stockProfileDict, stockDirectorDict)
     stockDataArray.append(stockData)
 
     # BACK
@@ -101,7 +101,7 @@ browser.quit()
 if DEBUG: print("Temporary files deleted")
 shutil.rmtree(environment.downloadDirectory)
 
-functions.print_excel(stockDataArray, directorDict, companyProfileDict)
+functions.print_excel(stockDataArray)
 
 print("Excel ready")
 
