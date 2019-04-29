@@ -249,7 +249,6 @@ def print_financial_profile_sheet(workbook, stock, formats):
     if DEBUG: print(keys)
     for key in keys :
         worksheet.write_string(row, col, key)
-        worksheet.write_string(row, col+1, stock.stockFinancialProfile[key])
         row += 1
     worksheet.write_url(0, 13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
 
