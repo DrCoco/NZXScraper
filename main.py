@@ -72,6 +72,13 @@ for stock in stockNames :
     # TODO change dl directory outside temp
     browser.find_element_by_xpath(".//span[contains(text(), 'Annual Reports')]").click()
     browser.find_element_by_xpath(r"""//*[@id="content"]/center/table/tbody/tr[3]/td/table/tbody/tr[2]/td[2]/table/tbody/tr/td/table[2]/tbody/tr[1]/td[1]/table/tbody/tr[1]/td[2]/form/input""").click()
+    browser.execute_script("window.history.go(-1)") # Go back
+
+    #  Arrive at tearsheet and pull pdf
+    browser.find_element_by_xpath(".//span[contains(text(), 'Tear Sheet')]").click()
+    browser.find_element_by_xpath(r"""//*[@id="content"]/center/table/tbody/tr[3]/td/table/tbody/tr[2]/td[2]/table/tbody/tr/td/table/tbody/tr/td/p[2]/a""").click()
+    browser.execute_script("window.history.go(-1)") # Go back
+
 
     # Arrive at Dividends and pull dividend informatio
     # Link Sample: https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/divhistory_csv.php?selection=TLS
