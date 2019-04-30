@@ -1,5 +1,7 @@
 from bs4 import BeautifulSoup
 
+# raw html input
+#region
 getStockSummaryInput = BeautifulSoup(r"""
 
 
@@ -587,3 +589,5 @@ getStockSummaryInput = BeautifulSoup(r"""
 	</TABLE>
 </CENTER>
 	<!-- END FOOTER -->""", 'lxml')
+	#endregion
+

@@ -72,7 +72,6 @@ for stock in stockNames :
 
     # Arrive at Annual Reports and pull latest annual report
     # ? May require refactor of xpath to shorten it
-    # TODO change dl directory outside temp
     browser.find_element_by_xpath(".//span[contains(text(), 'Annual Reports')]").click()
     browser.find_element_by_xpath(r"""//*[@id="content"]/center/table/tbody/tr[3]/td/table/tbody/tr[2]/td[2]/table/tbody/tr/td/table[2]/tbody/tr[1]/td[1]/table/tbody/tr[1]/td[2]/form/input""").click()
     browser.execute_script("window.history.go(-1)") # Go back
