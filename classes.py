@@ -1,10 +1,10 @@
 class Stock:
-    def __init__(self, stockSummaryDict, stockHistoricalPrices, stockHistoricalDividends, stockFinancialProfile, stockCompanyProfile, stockDirectorDict) :
+    def __init__(self, stockSummaryDict, stockHistoricalPricesDict, stockHistoricalDividendsDict, stockFinancialProfileDict, stockCompanyProfileDict, stockDirectorDict) :
         self.stockSummaryDict = stockSummaryDict
-        self.stockHistoricalPrices = stockHistoricalPrices
-        self.stockHistoricalDividends = stockHistoricalDividends
-        self.stockFinancialProfile = stockFinancialProfile
-        self.stockCompanyProfile = stockCompanyProfile
+        self.stockHistoricalPricesDict = stockHistoricalPricesDict
+        self.stockHistoricalDividendsDict = stockHistoricalDividendsDict
+        self.stockFinancialProfileDict = stockFinancialProfileDict
+        self.stockCompanyProfileDict = stockCompanyProfileDict
         self.stockDirectorDict = stockDirectorDict
 
     def __str__(self):
