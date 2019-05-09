@@ -31,7 +31,7 @@ html = browser.page_source
 htmlSoup =   BeautifulSoup(html,'lxml')
 
 # put all the stock tickers into a list
-stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=1)
+stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=3)
 stockNames = []
 for stock in stocksSoup :
     stockNames.append(stock.getText())
