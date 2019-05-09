@@ -1,9 +1,6 @@
-import classes
-import xlsxwriter
 import pandas
 from datetime import datetime, timedelta
 from numpy import loadtxt
-DEBUG = True
 import csv
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,8 +8,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
-import environment
+from nzxscraper.environment import *
+from nzxscraper.classes import Stock
 from bs4 import BeautifulSoup
+from time import sleep
+from nzxscraper import logger
 
 def get_browser() :
     """
@@ -28,14 +28,15 @@ def get_browser() :
     # Set up driver options
     chromeOptions = Options()
     chromeOptions.add_argument('log-level=3') # Remove warnings
-    prefs = {"download.default_directory": environment.downloadDirectory , # Sets default directory for downloads
+    chromeOptions.add_argument('headless')
+    prefs = {"download.default_directory": downloadDirectory , # Sets default directory for downloads
             "directory_upgrade": True, # Provides write permissions to the directory
 			"plugins.always_open_pdf_externally": True, # Disables the built-in pdf viewer (Helps with pdf download)
             "safebrowsing.enabled": True, # Tells  driver all file downloads and sites are safe
             "download.prompt_for_download": False, # Auto downloads files into default directory
             "profile.managed_default_content_settings.images":2 } # Removes images for faster load times
     chromeOptions.add_experimental_option("prefs",prefs)
-    browser = webdriver.Chrome(environment.chromeDriverLocation, chrome_options = chromeOptions) # Apply options
+    browser = webdriver.Chrome(chromeDriverLocation, chrome_options = chromeOptions) # Apply options
     homeURL = "https://library.aut.ac.nz/databases/nzx-deep-archive"
 
     browser.get(homeURL)
@@ -44,9 +45,11 @@ def get_browser() :
     # Wait 15 seconds for the driver to get started and get to the landing page
     try:
         myElem = WebDriverWait(browser, delay).until(EC.presence_of_element_located((By.CLASS_NAME, "form-field")))
-        if DEBUG: print ("Page is ready!")
+        logger.info("Browser is ready!")
     except TimeoutException:
-        print ("Loading took too much time!")
+        logger.error("Loading took too much time!")
+    sleep(2)
+    logger.info("get_browser() complete")
     return browser
 
 def get_stock_summary(stockSoup) :
@@ -92,7 +95,7 @@ def get_stock_summary(stockSoup) :
     summaryDict["Gross Yield"] = stockSoup.find('td', text= 'Gross Yield').find_next_sibling('td').text
     summaryDict["Sharpe Ratio"] = stockSoup.find('td', text= 'Sharpe Ratio').find_next_sibling('td').text
 
-    if DEBUG: print(summaryDict)
+    logger.debug(summaryDict)
     return summaryDict
 
 def create_historical_prices_csv_link(stockSummaryDict) :
@@ -100,120 +103,14 @@ def create_historical_prices_csv_link(stockSummaryDict) :
     toDate = datetime.now().strftime('%Y-%m-%d')
     csvLink =  "https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/functions/csv_prices.php?"
     csvLink += ("default=" + stockSummaryDict["Ticker"] + "&" + "fd=" + fromDate + "&" + "td=" + toDate)
-    if DEBUG: print("Pulling historical price data from: " + csvLink)
+    logger.info("Pulling historical price data from: " + csvLink)
     return csvLink
 
 def create_historical_dividends_csv_link(stockTicker) :
     return "https://companyresearch-nzx-com.ezproxy.aut.ac.nz/deep_ar/divhistory_csv.php?selection=" + stockTicker
 
-def print_overview_sheet(workbook,stockDataArray, formats) :
-    if DEBUG: print("Printing Overview")
-    overviewSheet = workbook.add_worksheet("Overview")
-    overviewSheet.write_string(0,0, "Stocks")
-    row = 1
-    col = 0
-    for stock in stockDataArray :
-        overviewSheet.write_url(row, col, "internal:" + stock.stockSummaryDict["Ticker"] + "_Summary!A1",string = stock.stockSummaryDict["Name"])
-        row += 1
-
-def print_summary_sheet(workbook,stock, formats) :
-    if DEBUG: print("       Printing Summary & Ratios for " + stock.stockSummaryDict["Ticker"])
-    row = 0
-    col = 0
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_Summary")
-    for key, value in stock.stockSummaryDict.items():
-        worksheet.write_string(row, col, key)
-        worksheet.write_string(row, col+2, value)
-        row += 1
-
-    worksheet.write_url(0, col+5, "internal:Overview!A1",string = "BACK")
-    worksheet.write_url(0, col+7, "internal:"+stock.stockSummaryDict["Ticker"]+"_HistoricalPrices!A1",string = "Historical Prices")
-
-def print_historical_prices_sheet(workbook, stock, formats) :
-    if DEBUG: print("       Printing Historical Prices for " + stock.stockSummaryDict["Ticker"])
-    row = 0
-    col = 0
-
-    # Create sheet
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"]+"_HistoricalPrices")
-    # Print Headers
-    keys = stock.stockHistoricalPrices[0].keys()
-    for key in keys :
-        worksheet.write_string(row, col, key)
-        col += 1
-    worksheet.write_url(row, col+13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
-
-    row = 1
-    col = 0
-
-    # Print Items
-    for rowItems in stock.stockHistoricalPrices:
-        #print(rowItems)
-        for key, value in rowItems.items():
-            #print(value)
-            if (key == 'Date') :
-                worksheet.write_datetime(row, col, datetime.strptime(value,'%d %b %Y'), formats['dateFormat'])
-            else :
-                worksheet.write_number(row, col, value)
-            col += 1
-        row += 1
-        col = 0
-
-def print_excel(stockDataArray) :
-    if DEBUG: print("Printing excel document")
-    # Create excel workbook
-    workbook = xlsxwriter.Workbook('StockDB.xlsx')
-
-    # Excel Cell Formats
-    formats = {}
-    formats['dateFormat'] = workbook.add_format({'num_format': 'd mmm yyyy'})
-    formats['moneyFormat'] = workbook.add_format({'num_format': '$#,##0'})
-    formats['number2decFormat'] = workbook.add_format({'num_format': '#.##'})
-
-    print_overview_sheet(workbook, stockDataArray, formats)
-
-    for stock in stockDataArray :
-        print_summary_sheet(workbook, stock, formats)
-        print_historical_prices_sheet(workbook, stock, formats)
-        print_Directors(workbook, stock, formats)
-        print_company_profile(workbook, stock, formats)
-        print_historical_dividends_sheet(workbook, stock, formats)
-        print_financial_profile_sheet(workbook, stock, formats)
-
-    workbook.close()
-
-def print_historical_dividends_sheet(workbook, stock, formats) :
-    if DEBUG: print("       Printing Historical Dividends for " + stock.stockSummaryDict["Ticker"])
-    row = 0
-    col = 0
-
-    # Create sheet
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"]+"_HistoricalDividends")
-    # Print Headers
-    keys = stock.stockHistoricalDividends[0].keys()
-    for key in keys :
-        worksheet.write_string(row, col, key)
-        col += 1
-    worksheet.write_url(row, col+13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
-
-    row = 1
-    col = 0
-
-    # Print Items
-    for rowItems in stock.stockHistoricalDividends:
-        if DEBUG: print(rowItems)
-        for key, value in rowItems.items():
-            if DEBUG: print(value)
-            if (key == 'Date') :
-                worksheet.write_datetime(row, col, datetime.strptime(value,'%d %b %Y'), formats['dateFormat'])
-            else :
-                worksheet.write_number(row, col, float(value))
-            col += 1
-        row += 1
-        col = 0
-
 def get_stock_historical_prices(stockHistoricalPricesCSV) :
-    if DEBUG: print(pandas.read_csv(stockHistoricalPricesCSV))
+    logger.debug(pandas.read_csv(stockHistoricalPricesCSV))
     return pandas.read_csv(stockHistoricalPricesCSV).to_dict('r')
 
 def get_director_information(directorSoup):
@@ -228,22 +125,17 @@ def get_director_information(directorSoup):
 
     return directorDict
 
-def print_Directors(workbook, stock, format) :
-    row = 0
-    col = 0
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_Directors")
-    for key, value in stock.stockDirectorDict.items():
-        worksheet.write_string(row, col, key)
-        worksheet.write_string(row, col+2, value)
-        row += 1
-
 def get_stock_historical_dividends(stockHistoricalDividendsCSV) :
     dividendDF = pandas.read_csv(stockHistoricalDividendsCSV)
     dividendDF = dividendDF.dropna()
-    dividendDF = dividendDF[['Ex Date', 'Gross Amount']]
-    dividendDF.columns = ['Date', 'Dividend Paid']
-    dividendDF = dividendDF[dividendDF['Dividend Paid'] != '-']
-    return dividendDF.to_dict('r')
+    try:
+        dividendDF = dividendDF[['Ex Date', 'Gross Amount']]
+        dividendDF.columns = ['Date', 'Dividend Paid']
+        dividendDF = dividendDF[dividendDF['Dividend Paid'] != '-']
+        return dividendDF.to_dict('r')
+    except:
+        logger.warning("No dividend information")
+        return None
 
 def get_financial_profile(stockSoup) :
     tables = stockSoup.find_all('table')
@@ -272,26 +164,11 @@ def get_financial_profile(stockSoup) :
 
     return financialProfileDict
 
-def print_financial_profile_sheet(workbook, stock, formats):
-    if DEBUG: print("       Printing Financial Profile for " + stock.stockSummaryDict["Ticker"])
-    row = 0
-    col = 0
-
-    # Create sheet
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"]+"_FinancialProfile")
-    # Print Headers & Values
-    keys = stock.stockFinancialProfile.keys()
-    if DEBUG: print(keys)
-    for key in keys :
-        worksheet.write_string(row, col, key)
-        row += 1
-    worksheet.write_url(0, 13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
-
 def get_company_profile(profileSoup):
     companyProfileDict = {}
     # Put all table rows into a list.
     profList = profileSoup.find_all("tr", 'heading')
-    if DEBUG: print("Pulling company profile information...")
+    logger.info("Pulling company profile information...")
     #profList[1] is the business description header. Store business description in Dictionary
     companyProfileDict[profList[1].text] = profList[1].find_next_sibling('tr').td.text 
     #profList[2] is the overview header. Store in Dictionary
@@ -302,20 +179,101 @@ def get_company_profile(profileSoup):
     companyProfileDict[profList[4].text] = profList[4].find_next_sibling('tr').td.text
     return companyProfileDict
 
-def print_company_profile(workbook, stock, format) :
-    row = 0
-    col = 0
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_company_profile")
-    for key, value in stock.stockCompanyProfile.items():
-        worksheet.write_string(row, col, key)
-        worksheet.write_string(row, col+2, value)
-        row += 1
+def list_companies(browser):
+    # Login
+    browser.find_element_by_xpath('//*[@id="username"]').send_keys(username)
+    browser.find_element_by_xpath('//*[@id="password"]').send_keys(password)
+    browser.find_element_by_xpath('//*[@id="login"]/section[4]/button').click()
+    logger.info("Logged into NZX System")
 
-def print_dividends_info(workbook,dividendsDict,stock) :
-    row = 0
-    col = 0
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_dividends_info")
-    for key, value in dividendsDict.items():
-        worksheet.write_string(row, col, key)
-        worksheet.write_string(row, col+2, value)
-        row += 1
+    # Arrive at Market Activity Page
+    browser.find_element_by_xpath(".//a[contains(text(), 'Company Research')]").click()
+    logger.info("Arrived at Market Activity Page")
+    # Click "View all" for main market
+    browser.find_elements_by_xpath(".//a[contains(text(), 'view all')]")[0].click()
+    logger.info("Arrived at Market Overview Page")
+    # Sort in descending order by clicking the 26th "a" tag
+    browser.find_elements_by_css_selector('td > a')[25].click()
+    logger.info("Arrived at Market Overview sorted by marketcap in descending order")
+
+    # Parse the page source into BeautifulSoup
+    # The page is the list of stocks in Descending order of Market Cap
+    html = browser.page_source
+    htmlSoup =   BeautifulSoup(html,'lxml')
+    logger.info("Market Overview Page parsed")
+
+    # Put all the stock tickers into a list
+    stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=COMPANIES)
+    stockNames = []
+    for stock in stocksSoup :
+        stockNames.append(stock.getText())
+
+    logger.info("List of companies to scrape finalised")
+    return stockNames
+
+def scrape_company(browser, stock):
+    logger.info("Current Stock: " + stock)
+
+    # Arrive at Summary & Ratios page and pull information
+    browser.find_element_by_link_text(stock).click()
+    summarySoup = BeautifulSoup(browser.page_source, 'lxml')
+    logger.info("Pulling ratio information")
+    stockSummaryDict = get_stock_summary(summarySoup)
+
+    # Arrive at Company Directory and pull directors information
+    browser.find_element_by_xpath(".//span[contains(text(), 'Company Directory')]").click()
+    directorSoup = BeautifulSoup(browser.page_source, 'lxml')
+    logger.info("Pulling Director's information")
+    stockDirectorDict = get_director_information(directorSoup)
+    browser.execute_script("window.history.go(-1)") # Go back to summary page
+
+    # Arrive at Company Profile and pull description information
+    browser.find_element_by_xpath(".//span[contains(text(), 'Company Profile')]").click()
+    profileSoup = BeautifulSoup(browser.page_source, 'lxml')
+    logger.info("Pulling company description")
+    stockProfileDict = get_company_profile(profileSoup)
+    logger.debug(stockProfileDict)
+    browser.execute_script("window.history.go(-1)") # Go back to summary page
+
+    # Arrive at Financial Profile and pull debt-equity information
+    browser.find_element_by_xpath(".//span[contains(text(), 'Financial Profile')]").click()
+    stockSoup = BeautifulSoup(browser.page_source, 'lxml')
+    logger.info("Pulling ratio information")
+    stockFinancialProfileDict = get_financial_profile(stockSoup)
+    browser.execute_script("window.history.go(-1)") # Go back to summary page
+
+    # Arrive at Annual Reports and pull latest annual report
+    # ? May require refactor of xpath to shorten it (Looks nicer)
+    # TODO change dl directory outside temp
+    browser.find_element_by_xpath(".//span[contains(text(), 'Annual Reports')]").click()
+    browser.find_element_by_xpath(r"""//*[@id="content"]/center/table/tbody/tr[3]/td/table/tbody/tr[2]/
+                                      td[2]/table/tbody/tr/td/table[2]/tbody/tr[1]/td[1]/table/tbody/
+                                      tr[1]/td[2]/form/input""").click()
+    sleep(10)
+    browser.execute_script("window.history.go(-1)") # Go back to summary page
+
+    # Create csv link for historical prices and pull it into a temporary folder
+    csvLink = create_historical_prices_csv_link(stockSummaryDict)
+    browser.get(csvLink)
+    sleep(3)
+    stockHistoricalPricesDict = get_stock_historical_prices(
+                                tempDirectory + stockSummaryDict["Ticker"]
+                                + " Historical Prices.csv")
+
+    # Create csv link for dividends and pull it into a temporary folder
+    csvLink = create_historical_dividends_csv_link(stockSummaryDict["Ticker"])
+    browser.get(csvLink)
+    sleep(3)
+    stockHistoricalDividendsDict = get_stock_historical_dividends(
+                                   tempDirectory + stockSummaryDict["Ticker"]
+                                   + " Historical Dividends.csv")
+
+    # Go back to the stock ticker page
+    browser.execute_script("window.history.go(-1)")
+
+    # Create the stock obj and store it in an array
+    stockData = Stock(stockSummaryDict, stockHistoricalPricesDict,
+                              stockHistoricalDividendsDict, stockFinancialProfileDict,
+                              stockProfileDict, stockDirectorDict)
+
+    return stockData
