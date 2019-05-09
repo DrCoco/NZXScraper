@@ -137,6 +137,10 @@ def print_excel(stockDataArray) :
 
     print_overview_sheet(workbook, stockDataArray, formats)
 
+    # * initialise worksheet for ratio summary
+    ratioSheet = workbook.add_worksheet("Ratio information")
+    row = 1
+
     for stock in stockDataArray :
         print_summary_sheet(workbook, stock, formats)
         print_historical_prices_sheet(workbook, stock, formats)
@@ -144,6 +148,8 @@ def print_excel(stockDataArray) :
         print_company_profile(workbook, stock, formats)
         print_historical_dividends_sheet(workbook, stock, formats)
         print_financial_profile_sheet(workbook, stock, formats)
+        print_ratios(ratioSheet, stock, formats, row)
+        row += 1
 
     workbook.close()
 
@@ -284,3 +290,14 @@ def print_dividends_info(workbook,dividendsDict,stock) :
         worksheet.write_string(row, col, key)
         worksheet.write_string(row, col+2, value)
         row += 1
+
+def print_ratios(worksheet, stock, formats, row) :
+    col = 0
+    for key, value in stock.stockSummaryDict.items():
+        if row == 1 :
+            worksheet.write_string(row, col, value)
+            worksheet.write_string(0, col, key)
+            col += 1
+        else:
+            worksheet.write_string(row, col, value)
+            col += 1
