@@ -15,16 +15,25 @@ import environment
 from bs4 import BeautifulSoup
 
 def get_browser() :
+    """
+    Creates a chrome driver which will be used by selenium to conduct the website navigation
+    Sets the following options to aid in webscraping
+        - Auto file download
+        - Removal the images
+        - Disables internal pdf viewer
+
+    Returns:
+        webdriver: Driver for site navigation
+    """
     # Set up driver options
     chromeOptions = Options()
     chromeOptions.add_argument('log-level=3') # Remove warnings
-    # prefs = {"profile.managed_default_content_settings.images":2} # Remove images to lower load times
-    prefs = {"download.default_directory": environment.downloadDirectory ,
-            "directory_upgrade": True,
-			"plugins.always_open_pdf_externally": True,
-            "safebrowsing.enabled": True,
-            "download.prompt_for_download": False,
-            "profile.managed_default_content_settings.images":2 }
+    prefs = {"download.default_directory": environment.downloadDirectory , # Sets default directory for downloads
+            "directory_upgrade": True, # Provides write permissions to the directory
+			"plugins.always_open_pdf_externally": True, # Disables the built-in pdf viewer (Helps with pdf download)
+            "safebrowsing.enabled": True, # Tells  driver all file downloads and sites are safe
+            "download.prompt_for_download": False, # Auto downloads files into default directory
+            "profile.managed_default_content_settings.images":2 } # Removes images for faster load times
     chromeOptions.add_experimental_option("prefs",prefs)
     browser = webdriver.Chrome(environment.chromeDriverLocation, chrome_options = chromeOptions) # Apply options
     homeURL = "https://library.aut.ac.nz/databases/nzx-deep-archive"
@@ -32,6 +41,7 @@ def get_browser() :
     browser.get(homeURL)
 
     delay = 15 # seconds
+    # Wait 15 seconds for the driver to get started and get to the landing page
     try:
         myElem = WebDriverWait(browser, delay).until(EC.presence_of_element_located((By.CLASS_NAME, "form-field")))
         if DEBUG: print ("Page is ready!")
@@ -40,6 +50,31 @@ def get_browser() :
     return browser
 
 def get_stock_summary(stockSoup) :
+    """
+    Gets the stock summary information including
+        - Name
+        - Price
+        - Market Cap
+        - Price Earnings Ratio
+        - Price Change
+        - Ticker
+        - Earnings per Share
+        - Net Tangible Assets
+        - Net DPS
+        - Gross DPS
+        - Beta Value
+        - Price/NTA
+        - Net Yield
+        - Gross Yield
+        - Sharpe Ratio
+
+    Args:
+        param1 (BeautifulSoup): The parsed page source of the summary page.
+
+    Returns:
+        dict: A dictionary which contains all the information captured on this page
+    """
+
     summaryDict = {}
     summaryDict["Name"] = (stockSoup.find('h1').text).split(' -')[0]
     summaryDict["Price"] = stockSoup.find('td', text= 'Market Price').find_next_sibling('td').text
