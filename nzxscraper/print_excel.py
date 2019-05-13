@@ -78,37 +78,41 @@ def print_excel(stockDataArray) :
         print_historical_dividends_sheet(workbook, stock, formats)
         print_financial_profile_sheet(workbook, stock, formats)
 
+    print_ratios_db(workbook, stockDataArray, formats)
+
     workbook.close()
 
 def print_historical_dividends_sheet(workbook, stock, formats) :
-    logger.info("       Printing Historical Dividends for " + stock.stockSummaryDict["Ticker"])
-    row = 0
-    col = 0
-
-    # Create sheet
-    worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"]+"_HistoricalDividends")
-    # Print Headers
-    keys = stock.stockHistoricalDividendsDict[0].keys()
-    for key in keys :
-        worksheet.write_string(row, col, key)
-        col += 1
-    worksheet.write_url(row, col+13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
-
-    row = 1
-    col = 0
-
-    # Print Items
-    for rowItems in stock.stockHistoricalDividendsDict:
-        logger.debug(rowItems)
-        for key, value in rowItems.items():
-            logger.debug(value)
-            if (key == 'Date') :
-                worksheet.write_datetime(row, col, datetime.strptime(value,'%d %b %Y'), formats['dateFormat'])
-            else :
-                worksheet.write_number(row, col, float(value))
-            col += 1
-        row += 1
+    if stock.stockHistoricalDividendsDict is not None:
+        logger.info("       Printing Historical Dividends for " + stock.stockSummaryDict["Ticker"])
+        row = 0
         col = 0
+
+        # Create sheet
+        worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"]+"_HistoricalDividends")
+        # Print Headers
+        keys = stock.stockHistoricalDividendsDict[0].keys()
+        logger.debug(stock.stockHistoricalDividendsDict[0].keys())
+        for key in keys :
+            worksheet.write_string(row, col, key)
+            col += 1
+        worksheet.write_url(row, col+13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
+
+        row = 1
+        col = 0
+
+        # Print Items
+        for rowItems in stock.stockHistoricalDividendsDict:
+            logger.debug(rowItems)
+            for key, value in rowItems.items():
+                logger.debug(value)
+                if (key == 'Date') :
+                    worksheet.write_datetime(row, col, datetime.strptime(value,'%d %b %Y'), formats['dateFormat'])
+                else :
+                    worksheet.write_number(row, col, float(value))
+                col += 1
+            row += 1
+            col = 0
 
 def print_Directors(workbook, stock, format) :
     row = 0
@@ -127,10 +131,11 @@ def print_financial_profile_sheet(workbook, stock, formats):
     # Create sheet
     worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"]+"_FinancialProfile")
     # Print Headers & Values
-    keys = stock.stockFinancialProfileDict.keys()
-    logger.debug(keys)
-    for key in keys :
+
+    logger.debug(stock.stockFinancialProfileDict.items())
+    for key, value in stock.stockFinancialProfileDict.items() :
         worksheet.write_string(row, col, key)
+        worksheet.write_string(row, col+1, value)
         row += 1
     worksheet.write_url(0, 13, "internal:"+stock.stockSummaryDict["Ticker"]+"_Summary!A1",string = "BACK")
 
@@ -143,12 +148,21 @@ def print_company_profile(workbook, stock, format) :
         worksheet.write_string(row, col+2, value)
         row += 1
 
-def print_dividends_info(workbook,dividendsDict,stock) :
-    if dividendsDict is not None:
-        row = 0
+def print_ratios_db(workbook, stockDataArray, formats):
+    # * initialise worksheet for ratio summary
+    worksheet = workbook.add_worksheet("Ratio information")
+    row = 0
+    col = 0
+
+    for key in stockDataArray[0].stockSummaryDict.keys():
+        worksheet.write_string(row, col, key)
+        col +=1
+    col = 0
+
+    row = 1
+    for stock in stockDataArray:
+        for key, value in stock.stockSummaryDict.items():
+            worksheet.write_string(row, col, value)
+            col +=1
+        row +=1
         col = 0
-        worksheet = workbook.add_worksheet(stock.stockSummaryDict["Ticker"] + "_dividends_info")
-        for key, value in dividendsDict.items():
-            worksheet.write_string(row, col, key)
-            worksheet.write_string(row, col+2, value)
-            row += 1
