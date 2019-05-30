@@ -28,6 +28,7 @@ def get_browser() :
     # Set up driver options
     chromeOptions = Options()
     chromeOptions.add_argument('log-level=3') # Remove warnings
+    chromeOptions.add_argument('--disable-gpu')
     # chromeOptions.add_argument('headless')
     # chromeOptions.add_argument("--proxy-server='direct://'")
     # chromeOptions.add_argument("--proxy-bypass-list=*")
@@ -209,9 +210,9 @@ def list_companies(browser):
 
     # Put all the stock tickers into a list
     stocksSoup = htmlSoup.find_all('a', {'class' : 'text'}, limit=COMPANIES)
-    stockNames = ['ATM']
-    # for stock in stocksSoup :
-    #     stockNames.append(stock.getText())
+    stockNames = []
+    for stock in stocksSoup :
+        stockNames.append(stock.getText())
 
     logger.info("List of companies to scrape finalised")
     return stockNames
